@@ -14,6 +14,12 @@ export interface ProviderProps {
 	children: ReactElement;
 }
 
+export interface Task {
+	id: string;
+	text: string;
+	completed: boolean;
+}
+
 export type ReducerAction =
 	| 'SET_ROTATION_DEGREE'
 	| 'SET_FLIP_DIRECTION'
@@ -34,7 +40,11 @@ export type ReducerAction =
 	| 'SET_FRAME_TYPE'
 	| 'SET_BACKGROUND_BASIC_COLOR'
 	| 'SET_BACKGROUND_FIRST_GRADIENT_COLOR'
-	| 'SET_BACKGROUND_SECOND_GRADIENT_COLOR';
+	| 'SET_BACKGROUND_SECOND_GRADIENT_COLOR'
+	| 'SET_CHARACTER_CREATED'
+	| 'ADD_TASK'
+	| 'REMOVE_TASK'
+	| 'TOGGLE_TASK';
 
 export interface DispatchParameters {
 	type: ReducerAction;
@@ -68,6 +78,8 @@ export interface StateKeys {
 	backgroundFirstGradientColor: string;
 	backgroundSecondGradientColor: string;
 	isFrameTransparent: boolean;
+	isCharacterCreated: boolean;
+	tasks: Task[];
 }
 
 export interface ContextProps {

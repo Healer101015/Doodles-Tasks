@@ -1,133 +1,45 @@
-import React, { useEffect, useRef } from "react";
+import React, { useState } from "react";
 import Peep from "react-peeps";
 import { useProvider } from "../utils/contextProvider";
 import { adjustPeepsViewbox } from "../utils/viewbox";
-import Marquee from "react-fast-marquee";
-import { Modal, Image } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
 import LeftMenu from "./leftMenu";
 import RightMenu from "./rightMenu";
 import { Footer } from "./footer";
 
-
-const styles = {
-    peepStyle: {
-        width: 390,
-        height: 390,
-        justifyContent: "center",
-        alignSelf: "center",
-        transform: "unset"
-    }
-};
-
 export const PeepsGenerator: React.FC = () => {
     const { state, dispatch } = useProvider();
-    const seen = localStorage.getItem("modal") === "seen";
-    const [opened, { open, close }] = useDisclosure(!seen);
-    const illustrationRef = useRef<HTMLDivElement>(null);
+    const [taskText, setTaskText] = useState("");
 
-    const { pickedAccessory, pickedBody, pickedFace, pickedFacialHair, pickedHair, strokeColor, pressedKey, scaleVector, svgTransform, isFrameTransparent, backgroundBasicColor } = state;
+    const {
+        pickedAccessory, pickedBody, pickedFace, pickedFacialHair, pickedHair,
+        strokeColor, scaleVector, svgTransform, isFrameTransparent,
+        backgroundBasicColor, isCharacterCreated, tasks
+    } = state;
 
-    useEffect(() => {
-        /*
-          Removing the event listeners in
-            small screens to prevent jumping behavior
-            when pressing on the illustration
-         */
-        if (window?.innerWidth < 1201) {
-            illustrationRef.current?.removeEventListener("mouseenter", handleMouseEnter);
-            illustrationRef.current?.removeEventListener("mouseleave", handleMouseLeave);
-        }
-    }, []);
+    const handleFinish = () => dispatch({ type: 'SET_CHARACTER_CREATED', payload: true });
 
-    useEffect(() => {
-        const peepGroupWrapper = document.querySelector(".svgWrapper > svg > g") as SVGGraphicsElement;
-        if (peepGroupWrapper) {
-            const { width, height, x, y } = peepGroupWrapper.getBBox();
-            peepGroupWrapper.setAttribute("transform", `rotate(${svgTransform?.rotate || "0"} ${x + width / 2} ${y + height / 2})`);
-        }
-    }, [svgTransform, pickedBody]);
-
-    const handleMouseEnter = () => {
-        (document.getElementsByClassName("svgWrapper")[0] as HTMLElement).focus();
-    };
-
-    const handleMouseLeave = () => {
-        (document.getElementsByClassName("header")[0] as HTMLElement).focus();
+    const addTask = () => {
+        if (!taskText.trim()) return;
         dispatch({
-            type: "SET_WHEEL_DIRECTION",
-            payload: undefined
+            type: 'ADD_TASK',
+            payload: { id: Date.now().toString(), text: taskText, completed: false }
         });
-        dispatch({
-            type: "SET_PRESSED_KEY",
-            payload: undefined
-        });
-    };
-
-    const handleKeyDown = ({ nativeEvent }: React.KeyboardEvent) => {
-        if (pressedKey === nativeEvent.key) {
-            return;
-        }
-        dispatch({
-            type: "SET_PRESSED_KEY",
-            payload: nativeEvent.key
-        });
-    };
-
-    const handleKeyUp = () => {
-        dispatch({
-            type: "SET_PRESSED_KEY",
-            payload: undefined
-        });
-    };
-
-    const handleMouseWheel = ({ nativeEvent }: React.WheelEvent) => {
-        dispatch({
-            type: "SET_IS_WHEEL_ACTIVE",
-            payload: true
-        });
-        if (nativeEvent.deltaY > 0) {
-            dispatch({
-                type: "SET_WHEEL_DIRECTION",
-                payload: "down"
-            });
-        } else {
-            dispatch({
-                type: "SET_WHEEL_DIRECTION",
-                payload: "up"
-            });
-        }
-        setTimeout(() => {
-            dispatch({
-                type: "SET_IS_WHEEL_ACTIVE",
-                payload: false
-            });
-        }, 0);
-    };
-
-    const handleModalClose = () => {
-        close();
-        localStorage.setItem("modal", "seen");
+        setTaskText("");
     };
 
     return (
-        <div>
-            <div className='ads'>
-                <a href='https://ojo.so/?ref=opeeps.fun' target='_blank' rel='noopener' style={{ width: "inherit" }}>
-                    <img src='/ad.png' alt='ojo.so advertisement' style={{ width: "inherit" }} />
-                </a>
-            </div>
+        <div className={`main-layout ${isCharacterCreated ? 'tasks-active' : ''}`}>
             <div className='container'>
-                <a className='header' href='/'>
-                    <h1>Opeeps Avatar Generator</h1>
-                </a>
-                <div ref={illustrationRef} className='svgWrapper' tabIndex={0} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onKeyDown={handleKeyDown} onKeyUp={handleKeyUp} onWheel={handleMouseWheel}>
+                <div className="header-section">
+                    <h1>{isCharacterCreated ? "Minhas Tarefas" : "Crie seu Personagem"}</h1>
+                </div>
+
+                <div className={`svgWrapper ${isCharacterCreated ? 'mini-avatar' : ''}`}>
                     <Peep
                         style={{
-                            ...styles.peepStyle,
-                            width: styles.peepStyle.width * scaleVector,
-                            height: styles.peepStyle.height * scaleVector,
-                            transform: `${svgTransform?.flip || ""}`
+                            width: isCharacterCreated ? 180 : 390,
+                            height: isCharacterCreated ? 180 : 390,
+                            transition: "all 0.4s ease-in-out"
                         }}
                         accessory={pickedAccessory}
                         body={pickedBody}
@@ -136,11 +48,48 @@ export const PeepsGenerator: React.FC = () => {
                         facialHair={pickedFacialHair}
                         strokeColor={strokeColor}
                         viewBox={adjustPeepsViewbox(pickedBody)}
-                        wrapperBackground={isFrameTransparent ? undefined : backgroundBasicColor}
+                        wrapperBackground={isFrameTransparent ? undefined : (backgroundBasicColor as string)}
                     />
+                    {!isCharacterCreated && (
+                        <button className="confirm-btn" onClick={handleFinish}>
+                            Confirmar Personagem
+                        </button>
+                    )}
                 </div>
-                <LeftMenu />
-                <RightMenu />
+
+                {!isCharacterCreated ? (
+                    <>
+                        <LeftMenu />
+                        <RightMenu />
+                    </>
+                ) : (
+                    <div className="task-container">
+                        <div className="task-input-group">
+                            <input
+                                type="text"
+                                value={taskText}
+                                onChange={(e) => setTaskText(e.target.value)}
+                                placeholder="O que você precisa fazer?"
+                            />
+                            <button onClick={addTask}>Adicionar</button>
+                        </div>
+
+                        <div className="task-list">
+                            {tasks.map(task => (
+                                <div key={task.id} className={`task-item ${task.completed ? 'done' : ''}`}>
+                                    <span onClick={() => dispatch({ type: 'TOGGLE_TASK', payload: task.id })}>
+                                        {task.text}
+                                    </span>
+                                    <button onClick={() => dispatch({ type: 'REMOVE_TASK', payload: task.id })}>×</button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button className="edit-btn" onClick={() => dispatch({ type: 'SET_CHARACTER_CREATED', payload: false })}>
+                            Voltar para Edição
+                        </button>
+                    </div>
+                )}
                 <Footer />
             </div>
         </div>

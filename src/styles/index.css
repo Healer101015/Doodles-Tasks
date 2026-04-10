@@ -989,3 +989,73 @@ div.chrome-picker>div:nth-child(1) {
         filter: hue-rotate(-360deg);
     }
 }
+
+
+
+.main-layout {
+    transition: background 0.5s ease;
+}
+
+.mini-avatar {
+    margin-top: 20px;
+    transform: scale(0.8);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.confirm-btn {
+    background: #27ae60;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+.task-container {
+    width: 100%;
+    max-width: 500px;
+    margin: 20px auto;
+    animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.task-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.task-input-group input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.task-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.task-item.done span {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
