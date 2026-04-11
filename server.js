@@ -2,136 +2,181 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── Mongoose connection ──────────────────────────────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET || 'peeps_secret_change_in_production';
+
+// ── Conexão MongoDB ──────────────────────────────────────
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('MongoDB Conectado'))
     .catch(err => console.error('Erro no MongoDB:', err));
 
-// ── Schemas ──────────────────────────────────────────────────────────────────
+// ── Schemas ──────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    passwordHash: { type: String, required: true },
-    avatarConfig: {
-        pickedHair:       { type: String, default: 'HatHip' },
-        pickedBody:       { type: String, default: 'PointingUp' },
-        pickedFace:       { type: String, default: 'Smile' },
-        pickedFacialHair: { type: String, default: 'None' },
-        pickedAccessory:  { type: String, default: 'None' },
-        strokeColor:      { type: mongoose.Schema.Types.Mixed, default: '#000000' },
-        backgroundBasicColor: { type: mongoose.Schema.Types.Mixed, default: '#FFD55A' },
-        isFrameTransparent: { type: Boolean, default: false },
-    },
-    createdAt: { type: Date, default: Date.now }
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
+    password: { type: String, required: true },
+    avatarConfig: { type: Object, default: {} },
+    createdAt: { type: Date, default: Date.now },
 });
 
 const taskSchema = new mongoose.Schema({
-    userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    text:      { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
     completed: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now }
+    priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    dueDate: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now },
 });
 
 const User = mongoose.model('User', userSchema);
 const Task = mongoose.model('Task', taskSchema);
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-const hashPassword = (pw) =>
-    crypto.createHash('sha256').update(pw).digest('hex');
+// ── Middleware de autenticação ───────────────────────────
+const auth = (req, res, next) => {
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Token não fornecido' });
+    }
+    try {
+        const token = header.split(' ')[1];
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ error: 'Token inválido ou expirado' });
+    }
+};
 
-// ── Auth routes ───────────────────────────────────────────────────────────────
-// Register
+// ── ROTAS DE AUTENTICAÇÃO ────────────────────────────────
+
+// Cadastro
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        if (!username || !password)
-            return res.status(400).json({ error: 'Usuário e senha obrigatórios' });
-
-        const exists = await User.findOne({ username });
+        const { name, email, password } = req.body;
+        if (!name || !email || !password)
+            return res.status(400).json({ error: 'Preencha todos os campos' });
+        if (password.length < 6)
+            return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' });
+        const exists = await User.findOne({ email });
         if (exists)
-            return res.status(409).json({ error: 'Usuário já existe' });
-
-        const user = new User({ username, passwordHash: hashPassword(password) });
-        await user.save();
-        res.status(201).json({ id: user._id, username: user.username, avatarConfig: user.avatarConfig });
-    } catch (e) {
-        res.status(500).json({ error: 'Erro ao registrar' });
+            return res.status(400).json({ error: 'Este e-mail já está cadastrado' });
+        const hashed = await bcrypt.hash(password, 10);
+        const user = await User.create({ name, email, password: hashed });
+        const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({
+            token,
+            user: { id: user._id, name: user.name, email: user.email, avatarConfig: user.avatarConfig },
+        });
+    } catch {
+        res.status(500).json({ error: 'Erro ao criar conta' });
     }
 });
 
 // Login
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username, passwordHash: hashPassword(password) });
+        const { email, password } = req.body;
+        if (!email || !password)
+            return res.status(400).json({ error: 'Preencha e-mail e senha' });
+        const user = await User.findOne({ email });
         if (!user)
-            return res.status(401).json({ error: 'Credenciais inválidas' });
-
-        res.json({ id: user._id, username: user.username, avatarConfig: user.avatarConfig });
-    } catch (e) {
+            return res.status(401).json({ error: 'E-mail ou senha incorretos' });
+        const match = await bcrypt.compare(password, user.password);
+        if (!match)
+            return res.status(401).json({ error: 'E-mail ou senha incorretos' });
+        const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({
+            token,
+            user: { id: user._id, name: user.name, email: user.email, avatarConfig: user.avatarConfig },
+        });
+    } catch {
         res.status(500).json({ error: 'Erro ao fazer login' });
     }
 });
 
-// ── Avatar route ──────────────────────────────────────────────────────────────
-app.put('/api/users/:id/avatar', async (req, res) => {
+// Salvar avatar
+app.put('/api/auth/avatar', auth, async (req, res) => {
     try {
         const user = await User.findByIdAndUpdate(
-            req.params.id,
-            { avatarConfig: req.body },
+            req.user.id,
+            { avatarConfig: req.body.avatarConfig },
             { new: true }
         );
-        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-        res.json(user.avatarConfig);
-    } catch (e) {
+        res.json({ avatarConfig: user.avatarConfig });
+    } catch {
         res.status(500).json({ error: 'Erro ao salvar avatar' });
     }
 });
 
-// ── Task routes ───────────────────────────────────────────────────────────────
-app.get('/api/tasks/:userId', async (req, res) => {
+// Perfil
+app.get('/api/auth/me', auth, async (req, res) => {
     try {
-        const tasks = await Task.find({ userId: req.params.userId }).sort({ createdAt: -1 });
-        // Return in the format the frontend expects
-        res.json(tasks.map(t => ({ id: t._id.toString(), text: t.text, completed: t.completed })));
-    } catch (e) {
+        const user = await User.findById(req.user.id).select('-password');
+        res.json(user);
+    } catch {
+        res.status(500).json({ error: 'Erro ao buscar usuário' });
+    }
+});
+
+// ── ROTAS DE TAREFAS (protegidas) ───────────────────────
+
+app.get('/api/tasks', auth, async (req, res) => {
+    try {
+        const tasks = await Task.find({ userId: req.user.id }).sort({ createdAt: -1 });
+        res.json(tasks);
+    } catch {
         res.status(500).json({ error: 'Erro ao buscar tarefas' });
     }
 });
 
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', auth, async (req, res) => {
     try {
-        const { userId, text } = req.body;
-        const task = new Task({ userId, text });
-        await task.save();
-        res.status(201).json({ id: task._id.toString(), text: task.text, completed: task.completed });
-    } catch (e) {
+        const { title, description, priority, dueDate } = req.body;
+        const task = await Task.create({ userId: req.user.id, title, description, priority, dueDate });
+        res.status(201).json(task);
+    } catch {
         res.status(500).json({ error: 'Erro ao criar tarefa' });
     }
 });
 
-app.put('/api/tasks/:id/toggle', async (req, res) => {
+app.put('/api/tasks/:id', auth, async (req, res) => {
     try {
-        const task = await Task.findById(req.params.id);
+        const task = await Task.findOneAndUpdate(
+            { _id: req.params.id, userId: req.user.id },
+            req.body,
+            { new: true }
+        );
         if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });
-        task.completed = !task.completed;
-        await task.save();
-        res.json({ id: task._id.toString(), text: task.text, completed: task.completed });
-    } catch (e) {
+        res.json(task);
+    } catch {
         res.status(500).json({ error: 'Erro ao atualizar tarefa' });
     }
 });
 
-app.delete('/api/tasks/:id', async (req, res) => {
+app.patch('/api/tasks/:id/toggle', auth, async (req, res) => {
     try {
-        await Task.findByIdAndDelete(req.params.id);
+        const task = await Task.findOne({ _id: req.params.id, userId: req.user.id });
+        if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });
+        task.completed = !task.completed;
+        await task.save();
+        res.json(task);
+    } catch {
+        res.status(500).json({ error: 'Erro ao atualizar tarefa' });
+    }
+});
+
+app.delete('/api/tasks/:id', auth, async (req, res) => {
+    try {
+        const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+        if (!task) return res.status(404).json({ error: 'Tarefa não encontrada' });
         res.json({ message: 'Tarefa deletada' });
-    } catch (e) {
+    } catch {
         res.status(500).json({ error: 'Erro ao deletar tarefa' });
     }
 });

@@ -1,98 +1,79 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-
-export interface AvatarConfig {
-    pickedHair: string;
-    pickedBody: string;
-    pickedFace: string;
-    pickedFacialHair: string;
-    pickedAccessory: string;
-    strokeColor: string | object;
-    backgroundBasicColor: string | object;
-    isFrameTransparent: boolean;
-}
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface AuthUser {
     id: string;
-    username: string;
-    avatarConfig: AvatarConfig;
+    name: string;
+    email: string;
+    avatarConfig: Record<string, unknown>;
 }
 
 interface AuthContextProps {
     user: AuthUser | null;
-    login: (username: string, password: string) => Promise<void>;
-    register: (username: string, password: string) => Promise<void>;
+    token: string | null;
+    login: (email: string, password: string) => Promise<void>;
+    register: (name: string, email: string, password: string) => Promise<void>;
     logout: () => void;
-    updateAvatarConfig: (config: AvatarConfig) => Promise<void>;
-    error: string | null;
+    loading: boolean;
 }
 
-const AuthContext = createContext<AuthContextProps>({
-    user: null,
-    login: async () => {},
-    register: async () => {},
-    logout: () => {},
-    updateAvatarConfig: async () => {},
-    error: null,
-});
+const AuthContext = createContext<AuthContextProps>({} as AuthContextProps);
 
 const API = 'http://localhost:5000/api';
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<AuthUser | null>(() => {
-        try {
-            const saved = localStorage.getItem('doodle_user');
-            return saved ? JSON.parse(saved) : null;
-        } catch { return null; }
-    });
-    const [error, setError] = useState<string | null>(null);
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [token, setToken] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const login = useCallback(async (username: string, password: string) => {
-        setError(null);
+    // Restaura sessão do localStorage ao iniciar
+    useEffect(() => {
+        const storedToken = localStorage.getItem('peeps_token');
+        const storedUser = localStorage.getItem('peeps_user');
+        if (storedToken && storedUser) {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+        }
+        setLoading(false);
+    }, []);
+
+    const persist = (token: string, user: AuthUser) => {
+        localStorage.setItem('peeps_token', token);
+        localStorage.setItem('peeps_user', JSON.stringify(user));
+        setToken(token);
+        setUser(user);
+    };
+
+    const login = async (email: string, password: string) => {
         const res = await fetch(`${API}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ email, password }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao fazer login');
-        setUser(data);
-        localStorage.setItem('doodle_user', JSON.stringify(data));
-    }, []);
+        persist(data.token, data.user);
+    };
 
-    const register = useCallback(async (username: string, password: string) => {
-        setError(null);
+    const register = async (name: string, email: string, password: string) => {
         const res = await fetch(`${API}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ name, email, password }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro ao registrar');
-        setUser(data);
-        localStorage.setItem('doodle_user', JSON.stringify(data));
-    }, []);
+        if (!res.ok) throw new Error(data.error || 'Erro ao criar conta');
+        persist(data.token, data.user);
+    };
 
-    const logout = useCallback(() => {
+    const logout = () => {
+        localStorage.removeItem('peeps_token');
+        localStorage.removeItem('peeps_user');
+        setToken(null);
         setUser(null);
-        localStorage.removeItem('doodle_user');
-    }, []);
-
-    const updateAvatarConfig = useCallback(async (config: AvatarConfig) => {
-        if (!user) return;
-        const res = await fetch(`${API}/users/${user.id}/avatar`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(config),
-        });
-        if (res.ok) {
-            const updated = { ...user, avatarConfig: config };
-            setUser(updated);
-            localStorage.setItem('doodle_user', JSON.stringify(updated));
-        }
-    }, [user]);
+    };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, updateAvatarConfig, error }}>
+        <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );
