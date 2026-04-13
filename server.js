@@ -422,3 +422,7 @@ app.get('/api/tasks/stats', auth, async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
+app.get('/', (_req, res) => {
+    res.send('API online no Render 🚀');
+});
