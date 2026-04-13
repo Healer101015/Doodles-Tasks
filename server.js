@@ -9,7 +9,10 @@ const app = express();
 
 // ── 1. CONFIGURAÇÃO DO CORS (Obrigatório ser a primeira coisa) ──
 const corsOptions = {
-    origin: ['https://doodlestasks.vercel.app'], // Sem barra no final
+    origin: ['https://doodlestasks.vercel.app',
+        'https://localhost',
+        'http://localhost',
+        'capacitor://localhost'], // Sem barra no final
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     optionsSuccessStatus: 204
