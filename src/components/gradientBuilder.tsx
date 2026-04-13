@@ -41,16 +41,11 @@ export const GradientBuilder: React.FC<{
 
 	const [gradientDegree, setGradientDegree] = useState(
 		(type === 'Background'
-			? (backgroundBasicColor  as GradientType).degree
+			? (backgroundBasicColor as GradientType).degree
 			: (strokeColor as GradientType).degree) || 0
 	);
 
-	const [firstColorBoxClicked, setFirstColorBoxClicked] = useState<boolean>(
-		false
-	);
-	const [secondColorBoxClicked, setSecondColorBoxClicked] = useState<boolean>(
-		false
-	);
+	const [activeColorPicker, setActiveColorPicker] = useState<'first' | 'second' | null>(null);
 
 	useEffect(() => {
 		const dispatchKey =
@@ -65,7 +60,7 @@ export const GradientBuilder: React.FC<{
 		});
 	}, [firstColor, secondColor, gradientDegree, dispatch]);
 
-	const handleColorChange = (caller: string) => {
+	const handleColorChange = useCallback((caller: 'first' | 'second') => {
 		return (color: ColorResult) => {
 			if (!isValidHex(color)) {
 				return;
@@ -90,7 +85,7 @@ export const GradientBuilder: React.FC<{
 				});
 			}
 		};
-	};
+	}, [type, dispatch]);
 
 	const handleMouseWheel = useCallback(({ nativeEvent }: React.WheelEvent) => {
 		if (nativeEvent?.deltaY < 0) {
@@ -101,71 +96,30 @@ export const GradientBuilder: React.FC<{
 	}, []);
 
 	const handleFirstColorBoxClick = useCallback(() => {
-		if (secondColorBoxClicked) {
-			setSecondColorBoxClicked(false);
-		}
-		setFirstColorBoxClicked((state) => !state);
-	}, [secondColorBoxClicked]);
+		setActiveColorPicker(prev => prev === 'first' ? null : 'first');
+	}, []);
 
 	const handleSecondColorBoxClick = useCallback(() => {
-		if (firstColorBoxClicked) {
-			setFirstColorBoxClicked(false);
-		}
-		setSecondColorBoxClicked((state) => !state);
-	}, [firstColorBoxClicked]);
+		setActiveColorPicker(prev => prev === 'second' ? null : 'second');
+	}, []);
 
-	const renderColorWheel = useMemo(() => {
-		const renderHelper: { color: string; target: 'first' | 'second' } = {
-			color: '',
-			target: 'first',
-		};
-		if (firstColorBoxClicked) {
-			renderHelper.color = firstColor;
-			renderHelper.target = 'first';
-		}
+	const showingPicker = activeColorPicker !== null;
 
-		if (secondColorBoxClicked) {
-			renderHelper.color = secondColor;
-			renderHelper.target = 'second';
-		}
+	const gradientBackground = `linear-gradient(${gradientDegree}deg, ${firstColor}, ${secondColor})`;
 
-		return (
-			<>
-				{firstColorBoxClicked && (
-					<ColorWheel
-						type={type}
-						color={renderHelper.color}
-						target={renderHelper.target}
-					/>
-				)}
-				{secondColorBoxClicked && (
-					<ColorWheel
-						type={type}
-						color={renderHelper.color}
-						target={renderHelper.target}
-					/>
-				)}
-			</>
-		);
-	}, [firstColorBoxClicked, secondColorBoxClicked, firstColor, secondColor]);
-
-	const renderGradientPreviewer = useMemo(() => {
-		let backgroundColor = `linear-gradient(${gradientDegree}deg, ${firstColor}, ${secondColor})`;
-		if (firstColorBoxClicked || secondColorBoxClicked) {
-			backgroundColor = 'white';
-		}
-		return (
+	return (
+		<div className='gradientBlock'>
+			{/* Gradient preview with circular slider - only visible when no picker is open */}
 			<div
 				className='gradientPreview'
 				style={{
-					background: backgroundColor,
-					alignItems:
-						firstColorBoxClicked || secondColorBoxClicked
-							? 'baseline'
-							: 'center',
+					background: showingPicker ? 'transparent' : gradientBackground,
+					position: 'relative',
+					overflow: 'hidden',
 				}}
-				onWheel={handleMouseWheel}>
-				{
+				onWheel={handleMouseWheel}
+			>
+				{!showingPicker && (
 					//@ts-ignore
 					<CircularSlider
 						width={110}
@@ -186,28 +140,55 @@ export const GradientBuilder: React.FC<{
 						}}
 						label=''
 						dataIndex={gradientDegree}
-						style={{
-							display:
-								firstColorBoxClicked || secondColorBoxClicked
-									? 'none'
-									: 'inline-block',
-						}}
 					/>
-				}
-				{renderColorWheel}
-			</div>
-		);
-	}, [
-		gradientDegree,
-		firstColor,
-		secondColor,
-		firstColorBoxClicked,
-		secondColorBoxClicked,
-		handleMouseWheel,
-	]);
+				)}
 
-	const renderColorHexInputs = useMemo(() => {
-		return (
+				{/* Color wheel pickers rendered INSIDE the preview area */}
+				{activeColorPicker === 'first' && (
+					<div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
+						<ColorWheel
+							type={type}
+							color={firstColor}
+							target='first'
+						/>
+					</div>
+				)}
+				{activeColorPicker === 'second' && (
+					<div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
+						<ColorWheel
+							type={type}
+							color={secondColor}
+							target='second'
+						/>
+					</div>
+				)}
+			</div>
+
+			{/* Color boxes row */}
+			<div className='gradientColorBoxWrapper'>
+				<div
+					title={firstColor as string}
+					className='gradientColorBox'
+					style={{
+						background: firstColor as string,
+						animation: activeColorPicker === 'first' ? 'pulse 1s infinite' : 'unset',
+						cursor: 'pointer',
+					}}
+					onClick={handleFirstColorBoxClick}
+				/>
+				<div
+					title={secondColor as string}
+					className='gradientColorBox'
+					style={{
+						background: secondColor as string,
+						animation: activeColorPicker === 'second' ? 'pulse 1s infinite' : 'unset',
+						cursor: 'pointer',
+					}}
+					onClick={handleSecondColorBoxClick}
+				/>
+			</div>
+
+			{/* Hex inputs */}
 			<div className='gradientInputWrapper'>
 				<EditableInput
 					value={firstColor}
@@ -246,56 +227,6 @@ export const GradientBuilder: React.FC<{
 					}}
 				/>
 			</div>
-		);
-	}, [firstColor, secondColor]);
-
-	const renderColorBoxes = useMemo(() => {
-		return (
-			<div className='gradientColorBoxWrapper'>
-				<div
-					title={firstColor as string}
-					className='gradientColorBox'
-					style={{
-						background: firstColor as string,
-						animation: firstColorBoxClicked ? 'pulse 1s infinite' : 'unset',
-					}}
-					onClick={handleFirstColorBoxClick}
-				/>
-
-				<div
-					title={secondColor as string}
-					className='gradientColorBox'
-					style={{
-						background: secondColor as string,
-						animation: secondColorBoxClicked ? 'pulse 1s infinite' : 'unset',
-					}}
-					onClick={handleSecondColorBoxClick}
-				/>
-			</div>
-		);
-	}, [
-		firstColor,
-		secondColor,
-		handleFirstColorBoxClick,
-		handleSecondColorBoxClick,
-	]);
-
-	return useMemo(() => {
-		return (
-			<div className='gradientBlock'>
-				{renderGradientPreviewer}
-
-				{renderColorBoxes}
-
-				{renderColorHexInputs}
-			</div>
-		);
-	}, [
-		gradientDegree,
-		firstColor,
-		secondColor,
-		gradientDegree,
-		firstColorBoxClicked,
-		secondColorBoxClicked,
-	]);
+		</div>
+	);
 };

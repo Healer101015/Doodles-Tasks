@@ -13,11 +13,19 @@ export const ColorWheel: React.FC<ColorWheelType> = ({ color, target, type }) =>
 	const { dispatch } = useProvider();
 
 	useEffect(() => {
-		document.querySelectorAll('.flexbox-fix')[1].remove();
+		// Safely remove the alpha row without crashing
+		try {
+			const flexboxFixes = document.querySelectorAll('.flexbox-fix');
+			if (flexboxFixes && flexboxFixes[1]) {
+				flexboxFixes[1].remove();
+			}
+		} catch (e) {
+			// ignore
+		}
 	}, []);
 
 	const colorDispatchKeyHolder = useMemo(() => {
-		const keys = {firstColor: '', secondColor: ''}
+		const keys = { firstColor: '', secondColor: '' }
 		if (type === 'Background') {
 			keys.firstColor = 'SET_BACKGROUND_FIRST_GRADIENT_COLOR';
 			keys.secondColor = 'SET_BACKGROUND_SECOND_GRADIENT_COLOR';
@@ -26,7 +34,7 @@ export const ColorWheel: React.FC<ColorWheelType> = ({ color, target, type }) =>
 			keys.secondColor = 'SET_FOREGROUND_SECOND_COLOR';
 		}
 		return keys
-	}, [color])
+	}, [type])
 
 	return (
 		<ChromePicker

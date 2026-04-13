@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import Peep from "react-peeps";
 import {
     Accessories, BustPose, Face, FacialHair, Hair,
@@ -9,19 +9,12 @@ import { useProvider } from "../utils/contextProvider";
 import { useAuth } from "../utils/authContext";
 import { adjustPeepsViewbox, distinguishBodyViewbox } from "../utils/viewbox";
 import ColorModal from "./colorModal";
-import { SectionValues } from "./types";
+// Importe SectionValues se ainda for necessário no seu arquivo, senão pode remover
+// import { SectionValues } from "./types";
 
 type PieceSectionKeys = 'Hair' | 'Body' | 'Face' | 'FacialHair' | 'Accessories';
 
 const sections: PieceSectionKeys[] = ['Hair', 'Face', 'FacialHair', 'Body', 'Accessories'];
-
-const sectionEmoji: Record<PieceSectionKeys, string> = {
-    Hair: '💇',
-    Face: '😊',
-    FacialHair: '🧔',
-    Body: '👕',
-    Accessories: '🕶️',
-};
 
 const getPieces = (section: PieceSectionKeys): string[] => {
     switch (section) {
@@ -163,7 +156,6 @@ export const CharacterCreator: React.FC = () => {
                             onClick={() => setActiveSection(s)}
                             title={s}
                         >
-                            <span style={{ fontSize: 18 }}>{sectionEmoji[s]}</span>
                             <span style={styles.tabLabel}>{s}</span>
                         </button>
                     ))}
@@ -201,7 +193,7 @@ export const CharacterCreator: React.FC = () => {
                         onClick={handleConfirm}
                         disabled={saving}
                     >
-                        {saving ? 'Salvando...' : 'Confirmar personagem'}
+                        {saving ? 'Salvando...' : 'Confirmar'}
                     </button>
                 </div>
             </div>
@@ -214,9 +206,9 @@ const styles: Record<string, React.CSSProperties> = {
         minHeight: '100vh',
         background: '#FFF9F0',
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center', // Alterado para center para ficar melhor no mobile
         justifyContent: 'center',
-        padding: '20px 12px 40px',
+        padding: '16px', // Reduzido para melhor encaixe mobile
         fontFamily: '"Itim", cursive',
         boxSizing: 'border-box',
     },
@@ -224,15 +216,17 @@ const styles: Record<string, React.CSSProperties> = {
         background: '#ffffff',
         border: '3px solid #1a1a1a',
         borderRadius: 24,
-        boxShadow: '7px 7px 0 #1a1a1a',
-        padding: '28px 20px 24px',
+        boxShadow: '5px 5px 0 #1a1a1a', // Sombra levemente reduzida para não vazar da tela
+        padding: '24px 16px', // Reduzido o padding lateral para mobile
         width: '100%',
         maxWidth: 520,
         boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
     },
     title: {
         fontFamily: '"Gochi Hand", cursive',
-        fontSize: '1.9rem',
+        fontSize: '1.7rem', // Levemente reduzido para evitar quebras estranhas em telas pequenas
         margin: '0 0 4px',
         color: '#1a1a1a',
         textAlign: 'center',
@@ -240,19 +234,19 @@ const styles: Record<string, React.CSSProperties> = {
     subtitle: {
         fontSize: '0.9rem',
         color: '#888',
-        margin: '0 0 20px',
+        margin: '0 0 16px',
         textAlign: 'center',
     },
     previewWrap: {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 12,
+        gap: 16, // Aumentado um pouco o gap interno
         marginBottom: 20,
     },
     previewInner: {
-        width: 180,
-        height: 180,
+        width: 160, // Levemente reduzido para mobile
+        height: 160,
         borderRadius: '50%',
         border: '3px solid #1a1a1a',
         overflow: 'hidden',
@@ -265,8 +259,10 @@ const styles: Record<string, React.CSSProperties> = {
     },
     colorRow: {
         display: 'flex',
-        gap: 24,
+        gap: 20,
         alignItems: 'center',
+        justifyContent: 'center',
+        flexWrap: 'wrap', // Permite quebrar linha em telas super pequenas
     },
     colorItem: {
         display: 'flex',
@@ -280,18 +276,18 @@ const styles: Record<string, React.CSSProperties> = {
     },
     sectionTabs: {
         display: 'flex',
-        gap: 6,
+        gap: 8,
         marginBottom: 16,
         overflowX: 'auto',
-        paddingBottom: 4,
+        paddingBottom: 8, // Mais espaço para a barra de rolagem nativa
         scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch', // Scroll suave no iOS
     },
     tabBtn: {
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: 2,
-        padding: '8px 10px',
+        justifyContent: 'center',
+        padding: '10px 16px', // Ajustado o padding agora que os emojis sumiram
         border: '2.5px solid #ddd',
         borderRadius: 12,
         background: 'white',
@@ -299,7 +295,6 @@ const styles: Record<string, React.CSSProperties> = {
         flexShrink: 0,
         transition: 'all 0.15s',
         fontFamily: '"Itim", cursive',
-        minWidth: 58,
     },
     tabActive: {
         border: '2.5px solid #1a1a1a',
@@ -308,14 +303,15 @@ const styles: Record<string, React.CSSProperties> = {
         boxShadow: '2px 2px 0 #FFD55A, 2px 2px 0 2px #1a1a1a',
     },
     tabLabel: {
-        fontSize: '0.65rem',
+        fontSize: '0.9rem', // Aumentado para compensar a falta do emoji
+        fontWeight: 600,
         lineHeight: 1,
     },
     pieceGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(65px, 1fr))', // Itens um pouco menores no grid para caber mais no mobile
         gap: 8,
-        maxHeight: 260,
+        maxHeight: 220, // Reduzido um pouco para manter a tela mais compacta
         overflowY: 'auto',
         padding: '4px 2px',
         marginBottom: 20,
@@ -343,12 +339,11 @@ const styles: Record<string, React.CSSProperties> = {
     },
     actions: {
         display: 'flex',
-        gap: 10,
-        flexWrap: 'wrap',
+        gap: 12,
+        flexWrap: 'wrap', // Já estava aqui, mas agora com flex: 1 se ajusta melhor
     },
     shuffleBtn: {
-        flex: 1,
-        minWidth: 100,
+        flex: '1 1 100px', // Permite que o botão cresça ou encolha, com base base de 100px
         padding: '13px 16px',
         border: '2.5px solid #1a1a1a',
         borderRadius: 12,
@@ -358,10 +353,10 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: '0.95rem',
         color: '#1a1a1a',
         transition: 'all 0.15s',
+        textAlign: 'center',
     },
     confirmBtn: {
-        flex: 2,
-        minWidth: 160,
+        flex: '2 1 180px', // Ocupa mais espaço, mas quebra linha se a tela for menor que ~300px
         padding: '13px 16px',
         border: '2.5px solid #1a1a1a',
         borderRadius: 12,
@@ -373,6 +368,7 @@ const styles: Record<string, React.CSSProperties> = {
         letterSpacing: 0.5,
         boxShadow: '3px 3px 0 #FFD55A, 3px 3px 0 2px #1a1a1a',
         transition: 'all 0.15s',
+        textAlign: 'center',
     },
     confirmDisabled: {
         opacity: 0.5,
