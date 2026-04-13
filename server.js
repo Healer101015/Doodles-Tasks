@@ -422,7 +422,7 @@ app.get('/api/tasks/stats', auth, async (req, res) => {
 
 
 const corsOptions = {
-    origin: ['https://seu-frontend.vercel.app', 'https://seu-frontend.onrender.com'], // Coloque aqui a URL do seu site
+    origin: ['https://doodlestasks.vercel.app/'], // Coloque aqui a URL do seu site
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     optionsSuccessStatus: 204
