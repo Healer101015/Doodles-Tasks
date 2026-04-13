@@ -6,8 +6,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
+
+// ── 1. CONFIGURAÇÃO DO CORS (Obrigatório ser a primeira coisa) ──
+const corsOptions = {
+    origin: ['https://doodlestasks.vercel.app'], // Sem barra no final
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'peeps_secret_change_in_production';
 
@@ -419,17 +428,6 @@ app.get('/api/tasks/stats', auth, async (req, res) => {
         res.status(500).json({ error: 'Erro ao buscar estatísticas' });
     }
 });
-
-
-const corsOptions = {
-    origin: ['https://doodlestasks.vercel.app/'], // Coloque aqui a URL do seu site
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-    optionsSuccessStatus: 204
-};
-
-app.use(cors(corsOptions));
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
