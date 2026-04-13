@@ -13,6 +13,7 @@ interface AuthContextProps {
     login: (email: string, password: string) => Promise<void>;
     register: (name: string, email: string, password: string) => Promise<void>;
     logout: () => void;
+    saveAvatar: (avatarConfig: Record<string, unknown>) => Promise<void>;
     loading: boolean;
 }
 
@@ -25,7 +26,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Restaura sessão do localStorage ao iniciar
     useEffect(() => {
         const storedToken = localStorage.getItem('peeps_token');
         const storedUser = localStorage.getItem('peeps_user');
@@ -65,6 +65,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         persist(data.token, data.user);
     };
 
+    const saveAvatar = async (avatarConfig: Record<string, unknown>) => {
+        if (!token) return;
+        const res = await fetch(`${API}/auth/avatar`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ avatarConfig }),
+        });
+        if (res.ok) {
+            const updated = { ...user!, avatarConfig };
+            localStorage.setItem('peeps_user', JSON.stringify(updated));
+            setUser(updated);
+        }
+    };
+
     const logout = () => {
         localStorage.removeItem('peeps_token');
         localStorage.removeItem('peeps_user');
@@ -73,7 +90,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+        <AuthContext.Provider value={{ user, token, login, register, logout, saveAvatar, loading }}>
             {children}
         </AuthContext.Provider>
     );
