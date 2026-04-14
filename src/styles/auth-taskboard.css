@@ -1955,10 +1955,24 @@ select.tb-input {
         flex-direction: column;
         align-items: stretch;
     }
+
     .tb-toolbar-right {
         justify-content: flex-end;
     }
+
     .tb-task-actions {
+        opacity: 1;
+    }
+}
+
+@keyframes popIn {
+    from {
+        transform: translateX(-50%) scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(-50%) scale(1);
         opacity: 1;
     }
 }
